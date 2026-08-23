@@ -2,6 +2,6 @@
 export const BRAND = {
   name: 'Retargetng',
   tagline: 'First-party audience activation & retargeting',
-  headline: 'Turn your first-party customer database into consent-gated, always-in-sync advertising audiences.',
-  blurb: 'Retargetng segments your customers continuously, activates consented audiences to Meta and Google with delta sync, suppresses purchasers and opt-outs automatically, and measures real lift with holdouts — without ever exporting a CSV.',
+  headline: 'Retargetng turns your first-party customer data into consent-gated, always-in-sync Meta & Google audiences.',
+  blurb: 'Cart abandoners, lapsed buyers, VIPs, cross-sell — segmented continuously from your own data, pushed to your ad accounts with delta sync, purchasers and opt-outs removed automatically, and lift measured with holdouts. Never export a CSV again.',
 };
