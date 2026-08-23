@@ -22,13 +22,13 @@
     "kysely": "^0.28.2",
     "pg": "^8.16.0",
     "pg-copy-streams": "^6.0.6",
-    "dotenv": "^16.5.0"
+    "dotenv": "^16.5.0",
+    "tsx": "^4.19.4"
   },
   "devDependencies": {
     "@types/pg": "^8.15.2",
     "@types/pg-copy-streams": "^1.2.5",
     "kysely-codegen": "^0.18.5",
-    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
 }

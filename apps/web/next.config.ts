@@ -1,8 +1,10 @@
 import type { NextConfig } from 'next';
+import path from 'node:path';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   distDir: process.env.NEXT_DIST_DIR ?? '.next',
+  outputFileTracingRoot: path.join(__dirname, '../../'),
   transpilePackages: ['@aap/core', '@aap/db'],
   serverExternalPackages: ['pg', 'pg-copy-streams', 'pino', 'libphonenumber-js', 'bullmq', 'ioredis', 'kysely'],
   experimental: { serverActions: { bodySizeLimit: '2mb' } },

@@ -109,7 +109,7 @@ if (registry.currentMode === 'mock') { const n = await distribution.hydrateMockD
 await queue.start({ queues: [QUEUES.events, QUEUES.evaluate, QUEUES.sync, QUEUES.maintenance, QUEUES.ingest], concurrency, handler: handle });
 const timer = setInterval(schedulerTick, Number(process.env.SCHEDULER_INTERVAL_MS ?? 30_000));
 void schedulerTick();
-const port = Number(process.env.WORKER_PORT ?? 9464);
+const port = Number(process.env.PORT ?? process.env.WORKER_PORT ?? 9464);
 server.listen(port, () => log.info({ port, concurrency, destinationMode: registry.currentMode }, 'worker started'));
 
 async function shutdown(sig: string) {

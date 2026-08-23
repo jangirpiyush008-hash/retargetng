@@ -31,8 +31,13 @@ const poolRegistry = new WeakMap<object, pg.Pool>();
 export function createPool(opts: CreateDbOptions = {}): pg.Pool {
   const connectionString = opts.connectionString ?? process.env.DATABASE_URL;
   if (!connectionString) throw new Error('DATABASE_URL is not set');
+  // Managed Postgres (Railway/Supabase/RDS public endpoints) usually needs TLS; sslmode=require / PGSSL=true
+  // enables it without CA verification, sslmode=verify-full keeps full verification.
+  const sslMode = /[?&]sslmode=([a-z-]+)/.exec(connectionString)?.[1] ?? (process.env.PGSSL === 'true' ? 'require' : undefined);
+  const ssl = sslMode === 'verify-full' || sslMode === 'verify-ca' ? true : sslMode && sslMode !== 'disable' ? { rejectUnauthorized: false } : undefined;
   return new Pool({
-    connectionString,
+    connectionString: connectionString.replace(/([?&])sslmode=[a-z-]+&?/, '$1').replace(/[?&]$/, ''),
+    ssl,
     max: opts.max ?? Number(process.env.PG_POOL_MAX ?? 10),
     application_name: opts.applicationName ?? 'aap',
     statement_timeout: opts.statementTimeoutMs,

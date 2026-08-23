@@ -43,3 +43,17 @@ With Docker: `docker compose up -d` instead of the first line.
 * **Retention** runs daily; adjust per org in Settings → Retention.
 * **Partitions** for the next 3 months are created daily (`ensure_monthly_partitions`).
 * **Health**: web `/api/v1/health`, `/api/v1/ready`, `/api/v1/metrics`; worker `/health`, `/ready`, `/metrics` (Prometheus text).
+
+## Deploy to Railway (or any container host)
+
+One repo, **two services** + Postgres (+ optional Redis):
+
+| Service | Root | Build | Start | Health |
+|---|---|---|---|---|
+| `web` | repo root | `pnpm install --frozen-lockfile && pnpm --filter @aap/web build` (from `railway.json`) | `pnpm start` → runs migrations, then `next start` on `$PORT` | `/api/v1/health` |
+| `worker` | repo root (override start command) | same install (no build) | `pnpm start:worker` → migrations, then the worker on `$PORT` | `/health` |
+
+Environment variables for both services: `DATABASE_URL` (Railway Postgres; append `?sslmode=require` when using the public host),
+`PII_ENCRYPTION_KEYS` (`v1:<64 hex>` — generate with `openssl rand -hex 32`), `SESSION_SECRET`, `DESTINATION_MODE` (`mock` until
+real credentials are connected), `SECRET_STORE=db`, `NODE_ENV=production`, optional `REDIS_URL`.
+Seed a demo org from the worker shell once: `pnpm db:seed -- --quick`.
