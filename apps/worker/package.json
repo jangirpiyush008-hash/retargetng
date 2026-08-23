@@ -1,0 +1,23 @@
+{
+  "name": "@aap/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@aap/core": "workspace:*",
+    "@aap/db": "workspace:*",
+    "dotenv": "^16.5.0",
+    "pino": "^9.7.0",
+    "kysely": "^0.28.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

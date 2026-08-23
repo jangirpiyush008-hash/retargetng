@@ -1,0 +1,27 @@
+# Local infrastructure for the Audience Activation Platform.
+#   docker compose up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aap
+      POSTGRES_PASSWORD: aap
+      POSTGRES_DB: aap
+    command: >
+      postgres -c shared_buffers=1GB -c work_mem=64MB -c maintenance_work_mem=512MB
+               -c max_wal_size=4GB -c effective_cache_size=3GB -c random_page_cost=1.1
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aap"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    command: ["redis-server", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+volumes:
+  pgdata:
+  redisdata:

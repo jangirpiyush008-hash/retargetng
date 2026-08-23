@@ -1,0 +1,34 @@
+{
+  "name": "@aap/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./test-utils": "./src/test-utils.ts",
+    "./seed": "./src/seed/index.ts"
+  },
+  "scripts": {
+    "migrate": "tsx src/cli.ts migrate",
+    "reset": "tsx src/cli.ts reset",
+    "seed": "tsx src/seed/cli.ts",
+    "codegen": "kysely-codegen --dialect postgres --out-file src/types.ts && node codegen-postprocess.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "local": "bash ../../scripts/local-infra.sh start"
+  },
+  "dependencies": {
+    "kysely": "^0.28.2",
+    "pg": "^8.16.0",
+    "pg-copy-streams": "^6.0.6",
+    "dotenv": "^16.5.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.2",
+    "@types/pg-copy-streams": "^1.2.5",
+    "kysely-codegen": "^0.18.5",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

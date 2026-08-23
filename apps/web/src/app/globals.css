@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 98%; --foreground: 224 30% 10%;
+    --card: 0 0% 100%; --card-foreground: 224 30% 10%;
+    --popover: 0 0% 100%; --popover-foreground: 224 30% 10%;
+    --primary: 243 75% 59%; --primary-foreground: 0 0% 100%;
+    --secondary: 220 16% 94%; --secondary-foreground: 224 20% 20%;
+    --muted: 220 16% 95%; --muted-foreground: 220 10% 45%;
+    --accent: 243 80% 96%; --accent-foreground: 243 60% 35%;
+    --destructive: 0 72% 51%; --destructive-foreground: 0 0% 100%;
+    --success: 152 60% 38%; --success-foreground: 0 0% 100%;
+    --warning: 36 90% 48%; --warning-foreground: 0 0% 100%;
+    --border: 220 14% 90%; --input: 220 14% 88%; --ring: 243 75% 59%;
+    --sidebar: 226 34% 12%; --sidebar-foreground: 220 20% 85%; --sidebar-accent: 226 30% 18%; --sidebar-border: 226 28% 20%;
+    --chart-1: 243 75% 59%; --chart-2: 173 58% 39%; --chart-3: 36 90% 48%; --chart-4: 340 65% 55%; --chart-5: 200 80% 45%;
+    --radius: 0.625rem;
+  }
+  .dark {
+    --background: 226 30% 7%; --foreground: 220 20% 92%;
+    --card: 226 28% 10%; --card-foreground: 220 20% 92%;
+    --popover: 226 28% 10%; --popover-foreground: 220 20% 92%;
+    --primary: 243 80% 68%; --primary-foreground: 226 30% 8%;
+    --secondary: 226 22% 16%; --secondary-foreground: 220 20% 85%;
+    --muted: 226 22% 15%; --muted-foreground: 220 12% 60%;
+    --accent: 243 40% 20%; --accent-foreground: 243 80% 85%;
+    --destructive: 0 62% 50%; --destructive-foreground: 0 0% 100%;
+    --success: 152 55% 45%; --success-foreground: 0 0% 100%;
+    --warning: 36 90% 55%; --warning-foreground: 0 0% 0%;
+    --border: 226 20% 18%; --input: 226 20% 20%; --ring: 243 80% 68%;
+    --sidebar: 226 34% 6%; --sidebar-foreground: 220 20% 80%; --sidebar-accent: 226 30% 12%; --sidebar-border: 226 28% 14%;
+  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground antialiased; font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'tnum'; }
+  .num { font-variant-numeric: tabular-nums; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-thumb { @apply rounded-full bg-muted-foreground/25; } ::-webkit-scrollbar-track { background: transparent; }
+}
