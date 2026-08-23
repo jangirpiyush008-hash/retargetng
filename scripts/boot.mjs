@@ -41,12 +41,12 @@ if (dbUrl) {
   process.env.DATABASE_URL = dbUrl[1]; // normalise for every child process
   try { dbHost = new URL(dbUrl[1]).hostname; } catch { dbHost = '(unparseable URL)'; }
   log(`database: ${dbHost} (from ${dbUrl[0]})`);
+} else if ((process.env.EMBEDDED_DB ?? '').toLowerCase() === 'off') {
+  log('DATABASE_URL: MISSING and EMBEDDED_DB=off — the app will not start.');
 } else {
-  const seen = Object.keys(process.env).filter((k) => /^(DATABASE|POSTGRES|PG)[_A-Z]*$/.test(k));
-  log(`DATABASE_URL: MISSING — no usable database variable. Present-but-empty/unusable: ${seen.length ? seen.join(', ') : 'none'}`);
-  log('  → In Railway: add a PostgreSQL database, then set DATABASE_URL on THIS service.');
-  log('  → If the reference shows "<empty string>", the database service has a different name:');
-  log('     open the Postgres service → Variables → copy the DATABASE_URL value and paste it here literally.');
+  log('DATABASE_URL: not set — falling back to the EMBEDDED database (PGlite, in-process Postgres).');
+  log(`  demo mode: schema + demo data are created inside this container (DEMO_SEED=${process.env.DEMO_SEED ?? 'tiny'}); data is lost on redeploy.`);
+  log('  for a persistent deployment set DATABASE_URL to a managed Postgres and redeploy.');
 }
 // Railway private networking (*.railway.internal) is IPv6-only and needs a few seconds after boot.
 const privateNet = dbHost.endsWith('.railway.internal') || dbHost.endsWith('.internal');
@@ -72,7 +72,7 @@ const hasPnpm = spawnSync('pnpm', ['--version'], { stdio: 'ignore' }).status ===
 const bin = (pkgDir, name) => { const p = path.join(root, pkgDir, 'node_modules', '.bin', name); return existsSync(p) ? p : path.join(root, 'node_modules', '.bin', name); };
 
 async function migrate() {
-  if (!process.env.DATABASE_URL) { log('skipping migrations (no DATABASE_URL)'); return false; }
+  if (!process.env.DATABASE_URL) { log('embedded database: schema and demo data are prepared by the app at startup'); return false; }
   for (let attempt = 1; attempt <= 12; attempt++) {
     const r = hasPnpm ? spawnSync('pnpm', ['--filter', '@aap/db', 'migrate'], { stdio: 'inherit', cwd: root, env: process.env })
                       : spawnSync(bin('packages/db', 'tsx'), ['src/cli.ts', 'migrate'], { stdio: 'inherit', cwd: path.join(root, 'packages/db'), env: process.env });

@@ -1,4 +1,5 @@
 import type pg from 'pg';
+import type { EmbeddedPool } from '@aap/db';
 import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
 import type { DB } from '@aap/db';
@@ -40,7 +41,7 @@ export const DEMO_USERS = [
 ] as const;
 
 /** Full demo environment: organization, users, data, audiences, mock destinations, syncs, campaigns. */
-export async function seedDemo(db: Kysely<DB>, pool: pg.Pool, opts: SeedOptions): Promise<SeedSummary> {
+export async function seedDemo(db: Kysely<DB>, pool: pg.Pool | EmbeddedPool, opts: SeedOptions): Promise<SeedSummary> {
   const log = opts.log ?? (() => {});
   const rng = new Rng((opts.seed ?? 42) + 7);
   const now = new Date();
@@ -104,7 +105,7 @@ export async function seedDemo(db: Kysely<DB>, pool: pg.Pool, opts: SeedOptions)
 }
 
 /** Idempotent post-load phase: evaluate audiences, synthesize history, activate to mock destinations, campaigns, holdout, quality, stats. Safe to re-run (`--resume`). */
-export async function finishDemo(db: Kysely<DB>, pool: pg.Pool, opts: { organizationId: string; data: GenerateResult; accounts: Record<string, string>; log?: SeedOptions['log']; activate?: boolean; seed?: number }): Promise<SeedSummary> {
+export async function finishDemo(db: Kysely<DB>, pool: pg.Pool | EmbeddedPool, opts: { organizationId: string; data: GenerateResult; accounts: Record<string, string>; log?: SeedOptions['log']; activate?: boolean; seed?: number }): Promise<SeedSummary> {
   const log = opts.log ?? (() => {});
   const rng = new Rng((opts.seed ?? 42) + 11);
   const now = new Date();

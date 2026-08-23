@@ -19,10 +19,11 @@
     "local": "bash ../../scripts/local-infra.sh start"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.6",
+    "dotenv": "^16.5.0",
     "kysely": "^0.28.2",
     "pg": "^8.16.0",
     "pg-copy-streams": "^6.0.6",
-    "dotenv": "^16.5.0",
     "tsx": "^4.19.4"
   },
   "devDependencies": {

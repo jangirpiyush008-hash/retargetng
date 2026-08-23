@@ -15,6 +15,21 @@ Connect data → define audience (no-code) → preview → activate → stay in 
 * **Stack**: Next.js 15 · React 19 · TypeScript · Tailwind · shadcn-style UI · Recharts · Node 22 worker ·
   PostgreSQL 16 (Kysely) · Postgres-backed queue (BullMQ optional) · pino · vitest.
 
+## Runs with zero configuration (demo mode)
+
+If no `DATABASE_URL` is set, the app starts an **embedded PostgreSQL** (PGlite — real Postgres compiled
+to WASM, in-process), applies the migrations, seeds a demo organization and runs the background engine
+inside the same process. One container, no database service, fully working dashboard:
+
+```bash
+pnpm install && pnpm --filter @aap/web build && pnpm start   # → http://localhost:3000, admin@demo.aap / Admin12345!
+```
+
+`DEMO_SEED=tiny` (default) seeds 2k customers in seconds; `quick` = 50k, `full` = 1M, `off` = empty.
+Demo data lives in the container (`EMBEDDED_DB_DIR`, default `./.pgdata-embedded`) and is lost on redeploy.
+Set `DATABASE_URL` to a managed Postgres for anything persistent or multi-process, and `EMBEDDED_DB=off`
+to make a missing database a hard error.
+
 ## Quick start
 
 ```bash

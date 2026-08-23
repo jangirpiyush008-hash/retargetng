@@ -2,6 +2,7 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { ZodError, type ZodTypeAny, type z } from 'zod';
 import { getPrincipal } from './session';
+import { ready } from './context';
 import { ForbiddenError, assertCan, metrics, sanitizeError, type Permission, type Principal } from '@aap/core';
 
 export class HttpError extends Error { constructor(public status: number, message: string, public details?: unknown) { super(message); } }
@@ -17,6 +18,7 @@ export function api(opts: { permission?: Permission; public?: boolean }, handler
   return async (req: Request, route: { params: Promise<Record<string, string>> }) => {
     const started = Date.now(); const url = new URL(req.url);
     try {
+      await ready(); // embedded mode: schema + demo data + background engine (first request only)
       let principal: Principal | null = null;
       if (!opts.public) {
         const a = await getPrincipal(req);

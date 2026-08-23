@@ -18,3 +18,4 @@ export * from './platform/index.js';
 export * from './measurement/index.js';
 export * from './quality/index.js';
 export * from './api-schemas.js';
+export * from './worker/index.js';

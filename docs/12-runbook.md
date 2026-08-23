@@ -44,6 +44,16 @@ With Docker: `docker compose up -d` instead of the first line.
 * **Partitions** for the next 3 months are created daily (`ensure_monthly_partitions`).
 * **Health**: web `/api/v1/health`, `/api/v1/ready`, `/api/v1/metrics`; worker `/health`, `/ready`, `/metrics` (Prometheus text).
 
+## Demo / zero-config mode (embedded database)
+
+With no `DATABASE_URL`, `createDatabase()` starts PGlite (in-process Postgres). The web app then also
+owns the background engine (`WorkerRuntime`) — on the first request it migrates, seeds `DEMO_SEED`
+(tiny/quick/full/off) and starts consumers + scheduler, so evaluations, syncs and maintenance run in
+that single process. `/api/v1/ready` reports `database.mode = "embedded"`. Data lives in
+`EMBEDDED_DB_DIR` (default `./.pgdata-embedded`; use a mounted volume to persist, `EMBEDDED_DB=memory`
+for throwaway). Not for production: one process only, no backups, no pooling — set `DATABASE_URL`
+(and optionally `EMBEDDED_DB=off`) for real deployments.
+
 ## Deploy to Railway (or any container host)
 
 One repo, **two services** + Postgres (+ optional Redis):

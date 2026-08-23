@@ -1,8 +1,9 @@
 import type pg from 'pg';
+import type { EmbeddedPool } from '@aap/db';
 import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
 import type { DB } from '@aap/db';
-import { TableBuffer } from './copy.js';
+import { TableBuffer, type SeedMode } from './copy.js';
 import { Rng } from './random.js';
 import { CATEGORIES, buildProducts, FIRST_NAMES, LAST_NAMES, EMAIL_DOMAINS, COUNTRIES, IN_STATES, IN_CITIES, type SeedProduct } from './catalog.js';
 import { hashIdentifiers } from '../identity/normalize.js';
@@ -31,7 +32,7 @@ const DAY = 86400_000;
  * IDs are predicted from the identity sequences (the target tables must not receive concurrent
  * inserts during generation) — this is a seeding tool, not a production ingestion path.
  */
-export async function generateDataset(db: Kysely<DB>, pool: pg.Pool, opts: GenerateOptions): Promise<GenerateResult> {
+export async function generateDataset(db: Kysely<DB>, pool: pg.Pool | EmbeddedPool, opts: GenerateOptions): Promise<GenerateResult> {
   const started = Date.now();
   const log = opts.log ?? (() => {});
   const rng = new Rng(opts.seed ?? 42);
@@ -44,24 +45,26 @@ export async function generateDataset(db: Kysely<DB>, pool: pg.Pool, opts: Gener
   // ---------------------------------------------------------------- catalog
   const nextId = async (seq: string) => { const r = await pool.query<{ last_value: string; is_called: boolean }>(`SELECT last_value, is_called FROM ${seq}`); const row = r.rows[0]!; return row.is_called ? Number(row.last_value) + 1 : Number(row.last_value); };
   const totals = { orders: 0, items: 0, events: 0, cartEvents: 0 };
+  // The embedded database has no COPY stream, so rows go in as batched multi-row INSERTs instead.
+  const mode: SeedMode = (pool as unknown as { embedded?: boolean }).embedded ? 'insert' : 'copy';
   const client = await pool.connect();
   try {
-    await client.query(`SET synchronous_commit = off`);
+    await client.query(`SET synchronous_commit = off`).catch(() => { /* not settable on the embedded database */ });
     const catStart = await nextId('categories_id_seq');
-    let w = new TableBuffer('categories', ['organization_id', 'external_category_id', 'name', 'path']);
+    let w = new TableBuffer('categories', ['organization_id', 'external_category_id', 'name', 'path'], mode);
     for (const c of CATEGORIES) w.write([org, c.key, c.name, c.key]);
     await w.flush(client);
     const catId = new Map(CATEGORIES.map((c, i) => [c.key, catStart + i]));
     const products = buildProducts(rng, 400);
     const prodStart = await nextId('products_id_seq');
-    w = new TableBuffer('products', ['organization_id', 'external_product_id', 'name', 'sku', 'brand', 'category_id', 'price', 'currency', 'attributes']);
+    w = new TableBuffer('products', ['organization_id', 'external_product_id', 'name', 'sku', 'brand', 'category_id', 'price', 'currency', 'attributes'], mode);
     for (const p of products) w.write([org, p.externalId, p.name, p.sku, p.brand, catId.get(p.categoryKey)!, p.price, 'INR', { category: p.categoryKey }]);
     await w.flush(client);
     const productId = (p: SeedProduct) => prodStart + products.indexOf(p);
     const byCat = new Map<string, SeedProduct[]>();
     for (const p of products) (byCat.get(p.categoryKey) ?? byCat.set(p.categoryKey, []).get(p.categoryKey)!).push(p);
     // cross-sell / replenishment relationships
-    w = new TableBuffer('product_relationships', ['organization_id', 'product_id', 'related_product_id', 'kind', 'weight', 'replenish_days']);
+    w = new TableBuffer('product_relationships', ['organization_id', 'product_id', 'related_product_id', 'kind', 'weight', 'replenish_days'], mode);
     for (const c of CATEGORIES) {
       const ps = byCat.get(c.key) ?? [];
       if (c.complement) for (const p of ps.slice(0, 6)) for (const q of (byCat.get(c.complement) ?? []).slice(0, 3)) w.write([org, productId(p), productId(q), 'CROSS_SELL', 1, null]);
@@ -80,16 +83,16 @@ export async function generateDataset(db: Kysely<DB>, pool: pg.Pool, opts: Gener
       const end = Math.min(N, start + CHUNK);
       const wc = new TableBuffer('customers', ['id', 'organization_id', 'external_customer_id', 'source', 'email_encrypted', 'email_hash', 'phone_encrypted', 'phone_hash', 'email_valid', 'phone_valid', 'country', 'region', 'city',
         'first_order_at', 'last_order_at', 'order_count', 'total_revenue', 'average_order_value', 'lifetime_value', 'refund_count', 'refund_amount', 'cancelled_count', 'purchase_frequency_days', 'last_cart_at', 'has_open_cart', 'open_cart_id', 'cart_event_count',
-        'last_product_view_at', 'last_activity_at', 'lifecycle_state', 'lifecycle_state_changed_at', 'status', 'consent_status', 'marketing_allowed', 'advertising_personalization_allowed', 'data_sharing_allowed', 'consent_updated_at', 'suppressed', 'suppressed_at', 'deleted', 'deleted_at', 'attributes', 'source_updated_at', 'created_at', 'updated_at']);
-      const wi = new TableBuffer('customer_identifiers', ['organization_id', 'customer_id', 'kind', 'hash_profile', 'hash']);
-      const wo = new TableBuffer('orders', ['id', 'organization_id', 'customer_id', 'external_order_id', 'status', 'currency', 'subtotal', 'discount', 'total', 'refunded_amount', 'item_count', 'cart_id', 'source', 'ordered_at', 'refunded_at']);
-      const woi = new TableBuffer('order_items', ['organization_id', 'order_id', 'customer_id', 'product_id', 'category_id', 'quantity', 'unit_price', 'total', 'ordered_at']);
-      const wpp = new TableBuffer('customer_product_purchases', ['organization_id', 'customer_id', 'product_id', 'first_purchased_at', 'last_purchased_at', 'purchase_count', 'quantity', 'revenue']);
-      const wcp = new TableBuffer('customer_category_purchases', ['organization_id', 'customer_id', 'category_id', 'first_purchased_at', 'last_purchased_at', 'purchase_count', 'revenue']);
-      const wpi = new TableBuffer('customer_product_interactions', ['organization_id', 'customer_id', 'product_id', 'interaction', 'first_at', 'last_at', 'count']);
-      const wce = new TableBuffer('cart_events', ['organization_id', 'customer_id', 'cart_id', 'event_type', 'product_id', 'quantity', 'value', 'event_id', 'occurred_at']);
-      const wev = new TableBuffer('customer_events', ['organization_id', 'event_id', 'event_type', 'customer_id', 'external_customer_id', 'source', 'payload', 'payload_hash', 'processing_status', 'occurred_at', 'received_at', 'processed_at']);
-      const wco = new TableBuffer('consent_events', ['organization_id', 'customer_id', 'event_type', 'purposes', 'source', 'occurred_at']);
+        'last_product_view_at', 'last_activity_at', 'lifecycle_state', 'lifecycle_state_changed_at', 'status', 'consent_status', 'marketing_allowed', 'advertising_personalization_allowed', 'data_sharing_allowed', 'consent_updated_at', 'suppressed', 'suppressed_at', 'deleted', 'deleted_at', 'attributes', 'source_updated_at', 'created_at', 'updated_at'], mode);
+      const wi = new TableBuffer('customer_identifiers', ['organization_id', 'customer_id', 'kind', 'hash_profile', 'hash'], mode);
+      const wo = new TableBuffer('orders', ['id', 'organization_id', 'customer_id', 'external_order_id', 'status', 'currency', 'subtotal', 'discount', 'total', 'refunded_amount', 'item_count', 'cart_id', 'source', 'ordered_at', 'refunded_at'], mode);
+      const woi = new TableBuffer('order_items', ['organization_id', 'order_id', 'customer_id', 'product_id', 'category_id', 'quantity', 'unit_price', 'total', 'ordered_at'], mode);
+      const wpp = new TableBuffer('customer_product_purchases', ['organization_id', 'customer_id', 'product_id', 'first_purchased_at', 'last_purchased_at', 'purchase_count', 'quantity', 'revenue'], mode);
+      const wcp = new TableBuffer('customer_category_purchases', ['organization_id', 'customer_id', 'category_id', 'first_purchased_at', 'last_purchased_at', 'purchase_count', 'revenue'], mode);
+      const wpi = new TableBuffer('customer_product_interactions', ['organization_id', 'customer_id', 'product_id', 'interaction', 'first_at', 'last_at', 'count'], mode);
+      const wce = new TableBuffer('cart_events', ['organization_id', 'customer_id', 'cart_id', 'event_type', 'product_id', 'quantity', 'value', 'event_id', 'occurred_at'], mode);
+      const wev = new TableBuffer('customer_events', ['organization_id', 'event_id', 'event_type', 'customer_id', 'external_customer_id', 'source', 'payload', 'payload_hash', 'processing_status', 'occurred_at', 'received_at', 'processed_at'], mode);
+      const wco = new TableBuffer('consent_events', ['organization_id', 'customer_id', 'event_type', 'purposes', 'source', 'occurred_at'], mode);
 
       for (let i = start; i < end; i++) {
         const id = custStart + i;
@@ -248,7 +251,7 @@ export async function generateDataset(db: Kysely<DB>, pool: pg.Pool, opts: Gener
       log(`customers ${end.toLocaleString()} / ${N.toLocaleString()}`, { orders: totals.orders, events: totals.events, elapsedS: Math.round((Date.now() - started) / 1000) });
     }
     if (suppressionRows.length) {
-      const ws = new TableBuffer('suppression_records', ['organization_id', 'customer_id', 'identifier_kind', 'identifier_hash', 'reason', 'source', 'created_at']);
+      const ws = new TableBuffer('suppression_records', ['organization_id', 'customer_id', 'identifier_kind', 'identifier_hash', 'reason', 'source', 'created_at'], mode);
       for (const r of suppressionRows) ws.write(r);
       await ws.flush(client);
     }

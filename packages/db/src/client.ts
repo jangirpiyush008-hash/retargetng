@@ -2,6 +2,7 @@ import { Kysely, PostgresDialect, type LogEvent } from 'kysely';
 import pg from 'pg';
 import type { DB } from './types.js';
 import { resolveDatabaseUrl, configureDnsFor } from './resolve.js';
+import { createEmbeddedDatabase, isEmbeddedPool, type EmbeddedPool } from './embedded.js';
 
 const { Pool, types } = pg;
 
@@ -58,6 +59,27 @@ export function createDbWithPool(opts: CreateDbOptions = {}): { db: Database; po
   poolRegistry.set(db, pool);
   return { db, pool };
 }
+
+export type PoolLike = pg.Pool | EmbeddedPool;
+
+/**
+ * Preferred entry point for apps: uses the configured Postgres when DATABASE_URL (or an
+ * equivalent) is present, otherwise starts the embedded database so the app still runs.
+ * Set EMBEDDED_DB=off to make a missing database a hard error instead.
+ */
+export function createDatabase(opts: CreateDbOptions = {}): { db: Database; pool: PoolLike; embedded: boolean; dataDir?: string } {
+  const resolved = opts.connectionString ? { url: opts.connectionString } : resolveDatabaseUrl();
+  if (resolved) {
+    const { db, pool } = createDbWithPool(opts);
+    return { db, pool, embedded: false };
+  }
+  if ((process.env.EMBEDDED_DB ?? '').toLowerCase() === 'off') throw new Error('DATABASE_URL is not set (EMBEDDED_DB=off)');
+  const e = createEmbeddedDatabase();
+  poolRegistry.set(e.db, e.pool as unknown as pg.Pool);
+  return { db: e.db, pool: e.pool, embedded: true, dataDir: e.dataDir };
+}
+
+export { isEmbeddedPool };
 
 export function wrapPool(pool: pg.Pool): Database {
   const db = new Kysely<DB>({ dialect: new PostgresDialect({ pool }) });

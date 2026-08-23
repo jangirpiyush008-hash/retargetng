@@ -1,4 +1,4 @@
-import { loadEnv, createDbWithPool, migrate, resetSchema } from '@aap/db';
+import { loadEnv, createDatabase, migrate, resetSchema } from '@aap/db';
 loadEnv();
 import { seedDemo } from './index.js';
 import { resumeDemo } from './resume.js';
@@ -8,15 +8,17 @@ import { hashPassword } from '../platform/auth.js';
 const args = process.argv.slice(2);
 const get = (k: string, d?: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const has = (k: string) => args.includes(k);
-const quick = has('--quick');
-const customers = Number(get('--customers', quick ? '50000' : '1000000'));
-const events = Number(get('--events', quick ? '500000' : '10000000'));
+const quick = has('--quick') || has('--tiny');
+const customers = Number(get('--customers', has('--tiny') ? '2000' : quick ? '50000' : '1000000'));
+const events = Number(get('--events', has('--tiny') ? '20000' : quick ? '500000' : '10000000'));
 const seed = Number(get('--seed', '42'));
 
-const { db, pool } = createDbWithPool({ max: 6, applicationName: 'aap-seed' });
+const { db, pool, embedded, dataDir } = createDatabase({ max: 6, applicationName: 'aap-seed' });
+if (embedded) console.log(`using the embedded database (${dataDir}) — no external Postgres configured`);
 const t0 = Date.now();
 const log = (msg: string, extra: Record<string, unknown> = {}) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${msg}`, Object.keys(extra).length ? JSON.stringify(extra) : '');
 try {
+  await migrate(pool); // idempotent: makes the CLI self-sufficient on a fresh (or embedded) database
   if (has('--bootstrap')) {
     // First admin / organization from env — idempotent, safe to run on every boot.
     const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.toLowerCase(); const password = process.env.BOOTSTRAP_ADMIN_PASSWORD; const orgName = process.env.BOOTSTRAP_ORG_NAME ?? 'My Organization';

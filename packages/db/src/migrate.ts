@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type pg from 'pg';
+
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const MIGRATIONS_DIR = path.resolve(here, '../migrations');
@@ -16,7 +16,13 @@ export interface MigrationResult {
  * inside a transaction, recorded in schema_migrations. Files are applied in lexical order
  * (0001_..., 0002_...). Never edits applied files — add a new file instead.
  */
-export async function migrate(pool: pg.Pool, opts: { dir?: string; log?: (m: string) => void } = {}): Promise<MigrationResult> {
+/** Anything exposing pg's connect()/query() shape — a real pg.Pool or the embedded pool. */
+export interface MigratorPool {
+  connect(): Promise<{ query: (text: string, params?: unknown[]) => Promise<{ rows: Array<Record<string, unknown>> }>; release: () => void }>;
+  query(text: string, params?: unknown[]): Promise<{ rows: Array<Record<string, unknown>> }>;
+}
+
+export async function migrate(pool: MigratorPool, opts: { dir?: string; log?: (m: string) => void } = {}): Promise<MigrationResult> {
   const dir = opts.dir ?? MIGRATIONS_DIR;
   const log = opts.log ?? (() => {});
   const client = await pool.connect();
@@ -27,7 +33,7 @@ export async function migrate(pool: pg.Pool, opts: { dir?: string; log?: (m: str
     // serialize concurrent migrators
     await client.query('SELECT pg_advisory_lock(727272)');
     const files = (await readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
-    const { rows } = await client.query<{ name: string; checksum: string }>('SELECT name, checksum FROM schema_migrations');
+    const { rows } = (await client.query('SELECT name, checksum FROM schema_migrations')) as { rows: Array<{ name: string; checksum: string }> };
     const done = new Map(rows.map((r) => [r.name, r.checksum]));
     for (const file of files) {
       const sql = await readFile(path.join(dir, file), 'utf8');
@@ -60,7 +66,7 @@ export async function migrate(pool: pg.Pool, opts: { dir?: string; log?: (m: str
 }
 
 /** Drops and recreates the public schema — destructive; used by tests and `db:reset`. */
-export async function resetSchema(pool: pg.Pool): Promise<void> {
+export async function resetSchema(pool: MigratorPool): Promise<void> {
   await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
 }
 

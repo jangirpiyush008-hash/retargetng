@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR ?? '.next',
   outputFileTracingRoot: path.join(__dirname, '../../'),
   transpilePackages: ['@aap/core', '@aap/db'],
-  serverExternalPackages: ['pg', 'pg-copy-streams', 'pino', 'libphonenumber-js', 'bullmq', 'ioredis', 'kysely'],
+  serverExternalPackages: ['pg', 'pg-copy-streams', 'pino', 'libphonenumber-js', 'bullmq', 'ioredis', 'kysely', '@electric-sql/pglite', 'dotenv'],
   experimental: { serverActions: { bodySizeLimit: '2mb' } },
   poweredByHeader: false,
   // workspace packages use ESM-style ".js" specifiers in TypeScript sources (NodeNext); map them for webpack

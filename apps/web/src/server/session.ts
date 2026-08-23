@@ -1,13 +1,14 @@
 import 'server-only';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { ctx } from './context';
+import { ctx, ready } from './context';
 import type { Principal, Permission, SessionInfo } from '@aap/core';
 import { can } from '@aap/core';
 
 export const SESSION_COOKIE = 'aap_session';
 
 export async function getSession(): Promise<SessionInfo | null> {
+  await ready();
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   return ctx().auth.resolveSession(token);
 }

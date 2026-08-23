@@ -39,6 +39,9 @@ importers:
       '@aap/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@electric-sql/pglite':
+        specifier: ^0.5.6
+        version: 0.5.6
       '@radix-ui/react-dialog':
         specifier: ^1.1.14
         version: 1.1.23(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -139,6 +142,9 @@ importers:
       '@aap/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@electric-sql/pglite':
+        specifier: ^0.5.6
+        version: 0.5.6
       dotenv:
         specifier: ^16.5.0
         version: 16.6.1
@@ -202,6 +208,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.5.6
+        version: 0.5.6
       dotenv:
         specifier: ^16.5.0
         version: 16.6.1
@@ -248,6 +257,9 @@ packages:
   '@babel/runtime@7.29.7':
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
+
+  '@electric-sql/pglite@0.5.6':
+    resolution: {integrity: sha512-ipn6AOHouIRwNSVL+0hIRuM3yDwAWgRmvZuj+45sudzKpmdPbG8hQuQDZ4A8l7U8E0l7u6pJ/VtMEW42w+vEKQ==}
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -2479,6 +2491,8 @@ snapshots:
   '@babel/helper-validator-identifier@7.29.7': {}
 
   '@babel/runtime@7.29.7': {}
+
+  '@electric-sql/pglite@0.5.6': {}
 
   '@emnapi/runtime@1.11.3':
     dependencies:
