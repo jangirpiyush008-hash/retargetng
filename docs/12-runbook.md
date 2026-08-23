@@ -50,8 +50,8 @@ One repo, **two services** + Postgres (+ optional Redis):
 
 | Service | Root | Build | Start | Health |
 |---|---|---|---|---|
-| `web` | repo root | `pnpm install --frozen-lockfile && pnpm --filter @aap/web build` (from `railway.json`) | `pnpm start` → runs migrations, then `next start` on `$PORT` | `/api/v1/health` |
-| `worker` | repo root (override start command) | same install (no build) | `pnpm start:worker` → migrations, then the worker on `$PORT` | `/health` |
+| `web` | repo root | `pnpm install --frozen-lockfile && pnpm --filter @aap/web build` (from `railway.json`) | `node scripts/boot.mjs web` → env report, migrations (with retries), then `next start` on `$PORT` | `/api/v1/health` (and `/api/v1/ready` explains any config problem) |
+| `worker` | repo root (override start command) | same install (no build) | `node scripts/boot.mjs worker` → migrations, then the worker on `$PORT` | `/health` |
 
 Environment variables for both services: `DATABASE_URL` (Railway Postgres; append `?sslmode=require` when using the public host),
 `PII_ENCRYPTION_KEYS` (`v1:<64 hex>` — generate with `openssl rand -hex 32`), `SESSION_SECRET`, `DESTINATION_MODE` (`mock` until

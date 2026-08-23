@@ -13,7 +13,6 @@ import { piiCipher } from '../crypto/pii.js';
 export function createSecretStore(db: Kysely<DB>, kind = process.env.SECRET_STORE ?? 'db'): SecretStore {
   if (kind === 'memory') return new MemorySecretStore();
   if (kind === 'env') return new EnvSecretStore();
-  const cipher = piiCipher();
   return new EncryptedDbSecretStore({
     query: async (q, params = []) => {
       // tiny $n → value binder on top of Kysely's sql template (queries are static strings defined in EncryptedDbSecretStore)
@@ -22,6 +21,6 @@ export function createSecretStore(db: Kysely<DB>, kind = process.env.SECRET_STOR
       const r = await frag.execute(db);
       return { rows: r.rows as Array<Record<string, unknown>> };
     },
-    encrypt: (s) => cipher.encrypt(s), decrypt: (b) => cipher.decrypt(b),
+    encrypt: (s) => piiCipher().encrypt(s), decrypt: (b) => piiCipher().decrypt(b), // lazy: key is validated on first use
   });
 }

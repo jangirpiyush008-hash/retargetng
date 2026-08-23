@@ -22,8 +22,8 @@
     "db:codegen": "pnpm --filter @aap/db codegen",
     "db:local": "pnpm --filter @aap/db local",
     "format": "prettier --write \"**/*.{ts,tsx,md,json,sql,yml,yaml}\"",
-    "start": "pnpm db:migrate && pnpm --filter @aap/web start",
-    "start:worker": "pnpm db:migrate && pnpm --filter @aap/worker start"
+    "start": "node scripts/boot.mjs web",
+    "start:worker": "node scripts/boot.mjs worker"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
