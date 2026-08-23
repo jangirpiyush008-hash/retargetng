@@ -44,8 +44,8 @@ export function api(opts: { permission?: Permission; public?: boolean }, handler
 /** Database/configuration failures → a message that tells the operator what to fix (see /api/v1/ready). */
 function classifyInfraError(e: unknown): string | null {
   const msg = String((e as Error)?.message ?? e); const code = (e as { code?: string })?.code;
-  if (/DATABASE_URL is not set/.test(msg)) return 'Database not configured: set DATABASE_URL on this service (see /api/v1/ready).';
-  if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'EAI_AGAIN' || code === 'ETIMEDOUT' || /connect ECONNREFUSED|getaddrinfo/.test(msg)) return 'Database unreachable: check DATABASE_URL / network (see /api/v1/ready).';
+  if (/DATABASE_URL is not set/.test(msg)) return 'Database not configured: set DATABASE_URL on this service (see /api/v1/ready for details).';
+  if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'EAI_AGAIN' || code === 'ETIMEDOUT' || /connect ECONNREFUSED|getaddrinfo/.test(msg)) return 'Database unreachable — the host in DATABASE_URL does not resolve or refuses connections. See /api/v1/ready for the exact host and fix.';
   if (code === '42P01' || /relation "[a-z_]+" does not exist/.test(msg)) return 'Database schema not migrated: run `pnpm db:migrate` (the boot script does this automatically when DATABASE_URL is set).';
   if (code === '28P01' || /password authentication failed/.test(msg)) return 'Database authentication failed: check DATABASE_URL credentials.';
   if (/PII_ENCRYPTION_KEYS/.test(msg)) return 'PII_ENCRYPTION_KEYS is missing or malformed (kid:<64 hex chars>).';

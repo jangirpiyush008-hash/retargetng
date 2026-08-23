@@ -1,6 +1,7 @@
 import { Kysely, PostgresDialect, type LogEvent } from 'kysely';
 import pg from 'pg';
 import type { DB } from './types.js';
+import { resolveDatabaseUrl, configureDnsFor } from './resolve.js';
 
 const { Pool, types } = pg;
 
@@ -29,7 +30,9 @@ export interface CreateDbOptions {
 const poolRegistry = new WeakMap<object, pg.Pool>();
 
 export function createPool(opts: CreateDbOptions = {}): pg.Pool {
-  const connectionString = opts.connectionString ?? process.env.DATABASE_URL;
+  const resolved = opts.connectionString ? null : resolveDatabaseUrl();
+  configureDnsFor(resolved);
+  const connectionString = opts.connectionString ?? resolved?.url;
   if (!connectionString) throw new Error('DATABASE_URL is not set');
   // Managed Postgres (Railway/Supabase/RDS public endpoints) usually needs TLS; sslmode=require / PGSSL=true
   // enables it without CA verification, sslmode=verify-full keeps full verification.

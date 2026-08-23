@@ -4,6 +4,12 @@ import { createPool } from './client.js';
 import { migrate, resetSchema } from './migrate.js';
 
 const cmd = process.argv[2];
+import { resolveDatabaseUrl, configureDnsFor, waitForDns } from './resolve.js';
+const resolved = resolveDatabaseUrl();
+if (!resolved) { console.error('No database configured. Set DATABASE_URL (or DATABASE_PUBLIC_URL / PGHOST+PGPASSWORD).'); process.exit(1); }
+console.log(`using database from ${resolved.source}: ${resolved.host}`);
+configureDnsFor(resolved);
+if (resolved.privateNetwork && !(await waitForDns(resolved))) console.warn(`warning: ${resolved.host} did not resolve yet — attempting to connect anyway`);
 const pool = createPool({ max: 2 });
 try {
   if (cmd === 'migrate') {
