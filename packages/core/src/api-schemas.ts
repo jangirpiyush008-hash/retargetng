@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { RuleDefinitionSchema } from './rules/schema.js';
-import { CreateAudienceSchema, UpdateAudienceSchema, ScheduleSchema } from './audience/service.js';
+import { CreateAudienceSchema, UpdateAudienceSchema, ScheduleSchema, BulkCreateAudiencesSchema } from './audience/service.js';
 import { InboundEventBatchSchema } from './events/schema.js';
 import { CompliancePolicyRulesSchema } from './consent/policy.js';
 import { PERMISSIONS } from './rbac/index.js';
@@ -16,6 +16,7 @@ export const ApiSchemas = {
     consent: z.object({ marketing: z.boolean().optional(), advertising_personalization: z.boolean().optional(), data_sharing: z.boolean().optional() }).optional(),
   })).min(1).max(1000) }),
   audienceCreate: CreateAudienceSchema,
+  audienceBulkCreate: BulkCreateAudiencesSchema,
   audienceUpdate: UpdateAudienceSchema,
   audiencePreview: z.object({ definition: RuleDefinitionSchema.optional(), templateKey: z.string().optional(), templateParams: z.record(z.unknown()).optional(), excludeAudienceIds: z.array(z.string().uuid()).optional(), destinationType: z.string().optional(), holdoutPercent: z.number().min(0).max(50).optional() }),
   audienceActivate: z.object({ destinationAccountIds: z.array(z.string().uuid()).min(1), syncMode: z.enum(['INCREMENTAL', 'FULL_REFRESH']).optional(), syncSchedule: ScheduleSchema.optional().nullable(), compliancePolicyId: z.string().uuid().optional().nullable(), dryRun: z.boolean().optional() }),

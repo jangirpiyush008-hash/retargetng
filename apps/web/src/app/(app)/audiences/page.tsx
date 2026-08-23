@@ -10,13 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { BulkAudienceDialog } from './bulk-dialog';
 
 export default function AudiencesPage() {
-  const { data, error, loading } = useApi<{ data: any[] }>('/api/v1/audiences', { refreshMs: 30_000 });
+  const { data, error, loading, reload } = useApi<{ data: any[] }>('/api/v1/audiences', { refreshMs: 30_000 });
   const [q, setQ] = useState(''); const [status, setStatus] = useState('');
   const rows = (data?.data ?? []).filter((a) => (!q || a.name.toLowerCase().includes(q.toLowerCase()) || a.slug.toLowerCase().includes(q.toLowerCase())) && (!status || a.status === status));
   return (<div>
-    <PageHeader title="Audiences" description="Dynamic, rule-based segments kept in sync automatically. Members = rule matches; eligible = after consent, suppression and exclusions; match rate = platform-reported." actions={<Button asChild><Link href="/audiences/new"><Plus className="h-4 w-4" />New audience</Link></Button>} />
+    <PageHeader title="Audiences" description="Dynamic, rule-based segments kept in sync automatically. Members = rule matches; eligible = after consent, suppression and exclusions; match rate = platform-reported." actions={<><BulkAudienceDialog onDone={reload} /><Button asChild><Link href="/audiences/new"><Plus className="h-4 w-4" />New audience</Link></Button></>} />
     <div className="mb-3 flex items-center gap-2"><Input className="w-72" placeholder="Filter by name or slug…" value={q} onChange={(e) => setQ(e.target.value)} />
       <select className="h-9 rounded-md border bg-background px-2 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All statuses</option>{['ACTIVE', 'PAUSED', 'DRAFT'].map((s) => <option key={s} value={s}>{titleCase(s)}</option>)}</select>
       <span className="ml-auto text-xs text-muted-foreground">{rows.length} audiences</span></div>

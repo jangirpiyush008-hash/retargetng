@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { DB } from '@aap/db';
 import { compileRule, parseRuleDefinition, RuleDefinitionSchema, describeRule, type RuleDefinition } from '../rules/index.js';
 import { compilePolicyReasonExpr, parsePolicy, type CompliancePolicyRules } from '../consent/policy.js';
-import { TEMPLATE_MAP } from './templates.js';
+import { TEMPLATE_MAP, STANDARD_AUDIENCES } from './templates.js';
 import { AuditLogger } from '../audit/index.js';
 import { assertCan, type Principal } from '../rbac/index.js';
 import { NotFoundError, ValidationError, ConflictError, slugify, pct } from '../util/index.js';
@@ -33,6 +33,41 @@ export const CreateAudienceSchema = z.object({
 export type CreateAudienceInput = z.infer<typeof CreateAudienceSchema>;
 export const UpdateAudienceSchema = CreateAudienceSchema.innerType().partial().extend({ status: z.enum(['DRAFT', 'ACTIVE', 'PAUSED', 'ARCHIVED']).optional() });
 export type UpdateAudienceInput = z.infer<typeof UpdateAudienceSchema>;
+
+/** Bulk creation: pick from the standard library, generate per product/category, or pass explicit items. */
+export const BulkCreateAudiencesSchema = z.object({
+  status: z.enum(['DRAFT', 'ACTIVE']).default('ACTIVE'),
+  evaluate: z.boolean().default(true),
+  dryRun: z.boolean().default(false),
+  /** slugs from STANDARD_AUDIENCES */
+  standard: z.array(z.string().regex(/^[A-Z0-9_]{2,64}$/)).max(200).optional(),
+  /** one audience per selected product/category */
+  generate: z.object({
+    templateKey: z.enum(['PRODUCT_BUYER', 'CATEGORY_BUYER', 'CROSS_SELL', 'REPLENISHMENT']),
+    productIds: z.array(z.number().int()).max(500).default([]),
+    categoryIds: z.array(z.number().int()).max(500).default([]),
+    withinDays: z.number().int().min(1).max(3650).optional(),
+    /** CROSS_SELL: products to exclude buyers of (the thing you want to sell them) */
+    excludeProductIds: z.array(z.number().int()).max(50).default([]),
+    minDays: z.number().int().min(0).optional(),
+    maxDays: z.number().int().min(1).optional(),
+    priority: z.number().int().min(1).max(10_000).optional(),
+    evaluationSchedule: ScheduleSchema.optional(),
+    namePrefix: z.string().max(60).optional(),
+    excludeAudienceIds: z.array(z.string().uuid()).max(20).default([]),
+  }).optional(),
+  /** fully specified audiences (same shape as POST /audiences) */
+  items: z.array(CreateAudienceSchema).max(200).optional(),
+}).refine((v) => v.standard?.length || v.items?.length || v.generate, 'Provide standard, generate or items');
+export type BulkCreateAudiencesInput = z.infer<typeof BulkCreateAudiencesSchema>;
+
+export interface BulkCreateResult {
+  planned: Array<{ name: string; slug: string; templateKey?: string; description: string }>;
+  created: Array<{ id: string; name: string; slug: string }>;
+  skipped: Array<{ slug: string; reason: string }>;
+  failed: Array<{ slug: string; error: string }>;
+  dryRun: boolean;
+}
 
 export interface PreviewFunnel {
   total: number;              // rule matches (source)
@@ -95,6 +130,89 @@ export class AudienceService {
     });
     if (input.status === 'ACTIVE') await this.enqueueEvaluation(org, id, 'FULL');
     return { id };
+  }
+
+  /**
+   * Creates many audiences in one call: entries from the standard library, one audience per
+   * product/category from a template, and/or explicit definitions. Each audience is created
+   * independently — existing slugs are skipped and failures are reported per item, so a single
+   * bad entry never blocks the rest. `dryRun` returns the plan without writing anything.
+   */
+  async createBulk(principal: Principal, raw: unknown): Promise<BulkCreateResult> {
+    assertCan(principal, 'audiences:write');
+    const input = BulkCreateAudiencesSchema.parse(raw);
+    const org = principal.organizationId;
+    const plan: Array<CreateAudienceInput & { slug: string }> = [];
+
+    // 1. standard library
+    for (const slug of input.standard ?? []) {
+      const std = STANDARD_AUDIENCES.find((x) => x.slug === slug);
+      if (!std) throw new ValidationError(`Unknown standard audience "${slug}"`);
+      plan.push(CreateAudienceSchema.parse({
+        name: std.name, slug: std.slug, templateKey: std.templateKey, templateParams: std.params,
+        priority: std.priority, evaluationSchedule: std.schedule, status: input.status,
+        description: `Standard ${std.templateKey.toLowerCase().replace(/_/g, ' ')} audience`,
+      }) as never) as never;
+    }
+
+    // 2. one audience per product / category
+    const g = input.generate;
+    if (g) {
+      const products = g.productIds.length
+        ? await this.db.selectFrom('products').select(['id', 'name', 'external_product_id']).where('organization_id', '=', org).where('id', 'in', g.productIds).execute()
+        : [];
+      const categories = g.categoryIds.length
+        ? await this.db.selectFrom('categories').select(['id', 'name', 'external_category_id']).where('organization_id', '=', org).where('id', 'in', g.categoryIds).execute()
+        : [];
+      if (g.productIds.length && products.length !== new Set(g.productIds).size) throw new ValidationError('One or more products do not exist');
+      if (g.categoryIds.length && categories.length !== new Set(g.categoryIds).size) throw new ValidationError('One or more categories do not exist');
+      const entities = g.templateKey === 'CATEGORY_BUYER'
+        ? categories.map((c) => ({ id: c.id, name: c.name, ref: c.external_category_id }))
+        : products.map((p) => ({ id: p.id, name: p.name, ref: p.external_product_id }));
+      if (!entities.length) throw new ValidationError(`Select at least one ${g.templateKey === 'CATEGORY_BUYER' ? 'category' : 'product'}`);
+      const prefix = g.namePrefix?.trim();
+      for (const e of entities) {
+        const params: Record<string, unknown> =
+          g.templateKey === 'CATEGORY_BUYER' ? { categoryIds: [e.id], withinDays: g.withinDays }
+          : g.templateKey === 'CROSS_SELL' ? { boughtProductIds: [e.id], notBoughtProductIds: g.excludeProductIds }
+          : g.templateKey === 'REPLENISHMENT' ? { productIds: [e.id], minDays: g.minDays ?? 25, maxDays: g.maxDays ?? 45 }
+          : { productIds: [e.id], withinDays: g.withinDays };
+        const label = g.templateKey === 'CROSS_SELL' ? `Cross-sell — ${e.name}` : g.templateKey === 'REPLENISHMENT' ? `Replenishment — ${e.name}` : g.templateKey === 'CATEGORY_BUYER' ? `Category buyers — ${e.name}` : `Buyers — ${e.name}`;
+        const name = prefix ? `${prefix} ${e.name}` : label;
+        plan.push(CreateAudienceSchema.parse({
+          name, slug: slugify(`${g.templateKey}_${e.ref ?? e.id}`), templateKey: g.templateKey, templateParams: params,
+          priority: g.priority ?? TEMPLATE_MAP.get(g.templateKey)!.priority, evaluationSchedule: g.evaluationSchedule ?? TEMPLATE_MAP.get(g.templateKey)!.schedule,
+          status: input.status, excludeAudienceIds: g.excludeAudienceIds, description: `${label} (generated in bulk)`,
+        }) as never) as never;
+      }
+    }
+
+    // 3. explicit items
+    for (const item of input.items ?? []) plan.push({ ...item, slug: item.slug ?? slugify(item.name), status: input.status } as never);
+
+    const result: BulkCreateResult = { planned: [], created: [], skipped: [], failed: [], dryRun: input.dryRun };
+    const existing = new Set((await this.db.selectFrom('audiences').select('slug').where('organization_id', '=', org).execute()).map((a) => a.slug));
+    const seen = new Set<string>();
+    for (const item of plan) {
+      let description = '';
+      try { description = describeRule(this.resolveDefinition(item)); } catch (e) { result.failed.push({ slug: item.slug, error: (e as Error).message }); continue; }
+      result.planned.push({ name: item.name, slug: item.slug, templateKey: item.templateKey, description });
+      if (existing.has(item.slug) || seen.has(item.slug)) { result.skipped.push({ slug: item.slug, reason: existing.has(item.slug) ? 'an audience with this slug already exists' : 'duplicate in this request' }); continue; }
+      seen.add(item.slug);
+      if (input.dryRun) continue;
+      try {
+        const { id } = await this.create(principal, item);
+        result.created.push({ id, name: item.name, slug: item.slug });
+        if (input.evaluate && input.status === 'ACTIVE') await this.enqueueEvaluation(org, id, 'FULL');
+      } catch (e) {
+        result.failed.push({ slug: item.slug, error: (e as Error).message });
+      }
+    }
+    if (!input.dryRun && result.created.length) {
+      await this.audit.log({ organizationId: org, actor: principal, action: 'AUDIENCES_BULK_CREATED', entityType: 'audience', entityId: null as never,
+        metadata: { created: result.created.length, skipped: result.skipped.length, failed: result.failed.length, slugs: result.created.map((c) => c.slug).slice(0, 50), source: input.generate ? `generate:${input.generate.templateKey}` : input.standard?.length ? 'standard-library' : 'items' } });
+    }
+    return result;
   }
 
   async update(principal: Principal, id: string, raw: unknown): Promise<void> {

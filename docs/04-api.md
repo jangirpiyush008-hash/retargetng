@@ -17,6 +17,7 @@ Mutations are audited. Large collections are cursor-paginated: `?cursor=&limit=`
 | POST | `/events` | `events:write` | batch (≤ 1000) of events; idempotent; returns accepted/duplicates/rejected |
 | GET | `/data-quality` | `customers:read` | latest snapshot + history |
 | GET/POST | `/audiences` | `audiences:read` / `audiences:write` | create with rule AST or `templateKey` |
+| POST | `/audiences/bulk` | `audiences:write` | create many at once: `standard[]` (library slugs), `generate` (one audience per product/category from a template) and/or `items[]`; `dryRun` returns the plan |
 | GET | `/audiences/:id` | `audiences:read` | detail incl. rules, exclusions, destinations, stats |
 | PATCH | `/audiences/:id` | `audiences:write` | name/description/schedule/priority/holdout/exclusions; new rule ⇒ new version |
 | DELETE | `/audiences/:id` | `audiences:delete` (ADMIN+) | archives; removes from destinations |

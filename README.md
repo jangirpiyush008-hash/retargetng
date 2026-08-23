@@ -49,7 +49,7 @@ Full-scale demo: `pnpm db:seed -- --reset` (1M customers, 10M events).
 | Ingestion | `POST /api/v1/events` (11 event types, zod-validated, idempotent, PII encrypted+hashed before storage), `POST /api/v1/customers`, COPY-based bulk generator |
 | Identity | canonical `customer_id`, SHA-256 per destination hash profile (Meta/Google normalization), identity history, no auto-merge |
 | Consent & privacy | consent reducer, configurable compliance policies (TS ≡ SQL), global suppression with hash tombstones, deletion workflow, PII-redacting logs, RBAC (6 roles), audit log, encrypted secret store, API keys |
-| Audience engine | no-code rule AST → parameterized SQL, AND/OR/NOT nesting, product/category/behavior/time/value/membership/custom fields, 15 templates + standard recency windows, exclusions, priority, holdout |
+| Audience engine | no-code rule AST → parameterized SQL, AND/OR/NOT nesting, product/category/behavior/time/value/membership/custom fields, 15 templates + standard recency windows, exclusions, priority, holdout, **bulk creation** (standard library in one click, or one audience per product/category — hundreds at a time, with a dry-run plan) |
 | Membership engine | diff-based FULL/RECONCILE + **incremental candidate evaluation** (dirty ∪ time-boundary crossers ∪ dependency feed), history feed, daily stats |
 | Distribution | eligibility funnel → delta (ADD/REMOVE) → ≤10k batches → checkpointed, retried, resumable sync jobs; dry run; pause/resume/remove; suppression sweep; match-rate reporting |
 | Destinations | `MockMetaAdapter`, `MockGoogleAdapter` (default), `MetaAdapter` (Graph v25), `GoogleAdsAdapter` (UserList via Google Ads API + members via Data Manager API) |
