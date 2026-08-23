@@ -45,5 +45,21 @@ function start() {
   child.on('exit', (code, signal) => { log(`${role} exited code=${code} signal=${signal}`); process.exit(code ?? 1); });
 }
 
-await migrate();
+const migrated = await migrate();
+if (migrated) {
+  const coreTsx = bin('packages/core', 'tsx'); const coreDir = path.join(root, 'packages/core');
+  // First admin from env (idempotent)
+  if (process.env.BOOTSTRAP_ADMIN_EMAIL && process.env.BOOTSTRAP_ADMIN_PASSWORD) {
+    const r = spawnSync(coreTsx, ['src/seed/cli.ts', '--bootstrap'], { stdio: 'inherit', cwd: coreDir, env: process.env });
+    if (r.status !== 0) log('WARNING: bootstrap admin failed (see above)');
+  }
+  // Optional demo dataset on first boot (web role only; runs in the background so the service becomes healthy immediately)
+  const demo = (process.env.DEMO_SEED ?? '').toLowerCase();
+  if (role === 'web' && (demo === 'quick' || demo === 'full')) {
+    const args = ['src/seed/cli.ts', '--if-empty', ...(demo === 'quick' ? ['--quick'] : [])];
+    log(`DEMO_SEED=${demo}: seeding demo organization in the background (skipped if it already exists)`);
+    const child = spawn(coreTsx, args, { stdio: 'inherit', cwd: coreDir, env: process.env, detached: false });
+    child.on('exit', (code) => log(`demo seed finished with code ${code}`));
+  }
+}
 start();

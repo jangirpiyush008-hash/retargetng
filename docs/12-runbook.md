@@ -56,4 +56,6 @@ One repo, **two services** + Postgres (+ optional Redis):
 Environment variables for both services: `DATABASE_URL` (Railway Postgres; append `?sslmode=require` when using the public host),
 `PII_ENCRYPTION_KEYS` (`v1:<64 hex>` — generate with `openssl rand -hex 32`), `SESSION_SECRET`, `DESTINATION_MODE` (`mock` until
 real credentials are connected), `SECRET_STORE=db`, `NODE_ENV=production`, optional `REDIS_URL`.
-Seed a demo org from the worker shell once: `pnpm db:seed -- --quick`.
+First login: either set `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (+ optional `BOOTSTRAP_ORG_NAME`) — the boot script creates the
+first organization and admin idempotently — and/or set `DEMO_SEED=quick` on the **web** service to load the demo organization in the
+background on first boot (login `admin@demo.aap / Admin12345!`). `GET /api/v1/ready` reports any configuration problem.

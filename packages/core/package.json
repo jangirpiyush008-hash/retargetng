@@ -20,7 +20,8 @@
     "pino": "^9.7.0",
     "zod": "^3.25.0",
     "pg": "^8.16.0",
-    "pg-copy-streams": "^6.0.6"
+    "pg-copy-streams": "^6.0.6",
+    "tsx": "^4.19.4"
   },
   "optionalDependencies": {
     "bullmq": "^5.53.0",

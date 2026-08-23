@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, Target, Wand2, Plug, RefreshCw, Megaphone, BarChart3, ShieldBan, ShieldCheck, Settings, ScrollText, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BRAND } from '@/lib/brand';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -24,7 +25,7 @@ export function Sidebar({ orgName, mode }: { orgName: string; mode: 'mock' | 'li
     <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center gap-2.5 px-4">
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground"><Radio className="h-4 w-4" /></div>
-        <div className="leading-tight"><div className="text-sm font-semibold text-white">Activate</div><div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">Audience Platform</div></div>
+        <div className="leading-tight"><div className="text-sm font-semibold text-white">{BRAND.name}</div><div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">Audience activation</div></div>
       </div>
       <div className="mx-3 mb-2 rounded-md border border-sidebar-border bg-sidebar-accent/60 px-3 py-2 text-xs">
         <div className="truncate font-medium text-white">{orgName}</div>
@@ -37,7 +38,7 @@ export function Sidebar({ orgName, mode }: { orgName: string; mode: 'mock' | 'li
             <n.icon className="h-4 w-4 opacity-80" />{n.label}</Link>);
         })}
       </nav>
-      <div className="border-t border-sidebar-border px-4 py-3 text-[10px] text-sidebar-foreground/50">Database is the source of truth · v0.1</div>
+      <div className="border-t border-sidebar-border px-4 py-3 text-[10px] text-sidebar-foreground/50">{BRAND.name} · database is the source of truth · v0.1</div>
     </aside>
   );
 }

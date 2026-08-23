@@ -34,6 +34,10 @@ export class AuthService {
 
   async login(email: string, password: string, meta: { ip?: string | null; userAgent?: string | null } = {}): Promise<{ token: string; session: SessionInfo }> {
     const user = await this.db.selectFrom('users').selectAll().where('email', '=', email.trim().toLowerCase()).where('disabled_at', 'is', null).executeTakeFirst();
+    if (!user) {
+      const any = await this.db.selectFrom('users').select('id').limit(1).executeTakeFirst();
+      if (!any) throw new ValidationError('No users exist yet. Create the first admin with BOOTSTRAP_ADMIN_EMAIL/BOOTSTRAP_ADMIN_PASSWORD, or run the demo seed (DEMO_SEED=quick or `pnpm db:seed -- --quick`).');
+    }
     if (!user || !(await verifyPassword(password, user.password_hash))) throw new ValidationError('Invalid email or password');
     const memberships = await this.db.selectFrom('organization_members as m').innerJoin('organizations as o', 'o.id', 'm.organization_id').select(['o.id', 'o.name', 'o.slug', 'm.role']).where('m.user_id', '=', user.id).orderBy('o.name').execute();
     if (!memberships.length && !user.is_super_admin) throw new ValidationError('User has no organization');
